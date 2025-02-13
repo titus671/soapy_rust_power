@@ -1,0 +1,15 @@
+[package]
+name = "soapy_rust_power"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+soapysdr = "0.4.1"
+num-complex = "0.4.6"
+tokio = {version = "1", features = ["full"]}
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid" ] }
+uuid = { version = "1", features = ["serde", "v4"] }
+serde = "1.0"
+serde_derive = "1.0"
+toml = "0.5.2"
+goertzel = "0.2"
