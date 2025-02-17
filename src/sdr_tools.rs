@@ -12,11 +12,11 @@ pub fn get_signal(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) 
     let dev = Device::new(()).expect("Couldn't open device");
 
     // Configure the SDR
-    dev.set_frequency(Direction::Rx, 0, config.sdr.center_frequency, ())
+    dev.set_frequency(Direction::Rx, 0, config.sdr.center_frequency.into(), ())
         .expect("Couldn't set frequency");
-    dev.set_sample_rate(Direction::Rx, 0, config.sdr.sample_rate)
+    dev.set_sample_rate(Direction::Rx, 0, config.sdr.sample_rate.into())
         .expect("Error setting sample rate");
-    dev.set_gain(Direction::Rx, 0, config.sdr.gain)
+    dev.set_gain(Direction::Rx, 0, config.sdr.gain.into())
         .expect("Error setting gain");
 
     // Set up streaming
@@ -61,7 +61,7 @@ pub fn get_signal(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) 
                     //println!("Freq: {:.3} MHz, RSSI: {:.2} dB", freq as f32 / 1e6, rssi);
                     let frequency = freq / 1e6;
                     let data =
-                        sql_tools::TSData::new(unix_time, config.id.unwrap(), frequency, rssi);
+                        sql_tools::TSData::new(unix_time, config.id.unwrap(), rssi, frequency);
                     tx.send(data).expect("Failed to send data from thread");
                 }
             }
@@ -73,8 +73,8 @@ pub fn get_signal(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) 
 /// Downconvert and filter the signal for a specific frequency
 fn downconvert_and_filter(
     samples: &[Complex<f32>],
-    target_freq: f64,
-    center_freq: f64,
+    target_freq: f32,
+    center_freq: f32,
     sample_rate: f32,
 ) -> Vec<Complex<f32>> {
     let n = samples.len();

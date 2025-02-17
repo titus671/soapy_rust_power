@@ -3,6 +3,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::sync::mpsc;
 use std::thread;
 mod config;
+mod math_tools;
 mod sdr_tools;
 mod sql_tools;
 
@@ -21,8 +22,8 @@ async fn main() -> Result<(), sqlx::Error> {
     thread::spawn(move || {
         sdr_tools::get_signal(&config, tx);
     });
-    for received in rx {
-        println!("Got: {:?}", received);
-    }
+
+    math_tools::moving_average(rx, &pool).await.unwrap();
+
     Ok(())
 }

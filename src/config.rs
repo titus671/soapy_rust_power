@@ -3,7 +3,7 @@ use std::fs;
 use toml;
 use uuid::Uuid;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Config {
     pub id: Option<Uuid>,
     pub name: String,
@@ -12,16 +12,16 @@ pub struct Config {
     pub sdr: Sdr,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Postgres {
     pub connection_url: String,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Sdr {
-    pub center_frequency: f64,
-    pub sample_rate: f64,
-    pub gain: f64,
-    pub frequencies: Vec<f64>,
+    pub center_frequency: f32,
+    pub sample_rate: f32,
+    pub gain: f32,
+    pub frequencies: Vec<f32>,
 }
 
 impl Config {

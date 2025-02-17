@@ -4,16 +4,16 @@ use sqlx::{FromRow, Pool, Postgres};
 use std::time::Duration;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TSData {
     pub time: Duration,
     pub id: Uuid,
-    pub rssi: f64,
+    pub rssi: f32,
     pub frequency: f32,
 }
 
 impl TSData {
-    pub fn new(time: Duration, id: Uuid, rssi: f64, frequency: f32) -> Self {
+    pub fn new(time: Duration, id: Uuid, rssi: f32, frequency: f32) -> Self {
         TSData {
             time,
             id,
@@ -30,21 +30,23 @@ struct SQLDevice {
 }
 
 pub async fn insert_time_series_data(pool: &Pool<Postgres>, data: TSData) -> Result<(), Error> {
-    sqlx::query(
+    let raw_sql = format!(
         "INSERT INTO sensor_data (
                 time,
                 id,
                 rssi,
                 frequency
                 )
-                VALUES(to_timestamp($1),$2,$3,$4);",
-    )
-    .bind(data.time)
-    .bind(data.id)
-    .bind(data.rssi)
-    .bind(data.frequency)
-    .execute(pool)
-    .await?;
+                VALUES(to_timestamp({}),$1,$2,$3)
+                ON CONFLICT (time, frequency, id) DO NOTHING;",
+        data.time.as_secs()
+    );
+    sqlx::query(&raw_sql)
+        .bind(data.id)
+        .bind(data.rssi)
+        .bind(data.frequency)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
