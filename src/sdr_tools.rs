@@ -1,12 +1,97 @@
 use crate::config;
 use crate::sql_tools;
 use num_complex::Complex;
+use rustfft::FftPlanner;
 use soapysdr::Device;
 use soapysdr::Direction;
 use std::f32::consts::PI;
 use std::sync::mpsc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub fn output_fft(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) {
+    let dev = Device::new(()).expect("Couldn't open device");
+
+    // Configure the SDR
+    dev.set_frequency(Direction::Rx, 0, config.sdr.center_frequency.into(), ())
+        .expect("Couldn't set frequency");
+    dev.set_sample_rate(Direction::Rx, 0, config.sdr.sample_rate.into())
+        .expect("Error setting sample rate");
+    dev.set_gain(Direction::Rx, 0, config.sdr.gain.into())
+        .expect("Error setting gain");
+
+    // Set up streaming
+    let mut stream = dev
+        .rx_stream::<Complex<f32>>(&[0])
+        .expect("Error getting stream");
+    stream.activate(None).expect("Error activating stream");
+
+    let mut buffer = vec![Complex::new(0.0, 0.0); 256];
+    let fft_size = 256;
+    let mut buffer = vec![Complex::new(0.0, 0.0); fft_size];
+
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(fft_size);
+    loop {
+        match stream.read(&mut [&mut buffer], 5_000_000) {
+            Ok(samples) => {
+                if samples < fft_size {
+                    eprintln!("Warning: Not enough samples for FFT, received {}", samples);
+                    continue;
+                }
+
+                let unix_time = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards");
+
+                let mut spectrum = buffer.clone();
+                fft.process(&mut spectrum);
+
+                let bin_size = config.sdr.sample_rate as f32 / fft_size as f32;
+
+                // Send TSData for each frequency bin
+                for (i, &c) in spectrum.iter().enumerate() {
+                    let freq = config.sdr.center_frequency as f32
+                        + (i as f32 - fft_size as f32 / 2.0) * bin_size;
+                    let power = 10.0 * c.norm_sqr().log10(); // Convert power to dB
+
+                    let data =
+                        sql_tools::TSData::new(unix_time, config.id.unwrap(), power, freq / 1e6);
+                    tx.send(data).expect("Failed to send data from thread");
+                }
+            }
+            Err(e) => eprintln!("Error reading stream: {:?}", e),
+        }
+    }
+}
+
+pub fn output_raw_iq(config: &config::Config) {
+    let dev = Device::new(()).expect("Couldn't open device");
+
+    // Configure the SDR
+    dev.set_frequency(Direction::Rx, 0, config.sdr.center_frequency.into(), ())
+        .expect("Couldn't set frequency");
+    dev.set_sample_rate(Direction::Rx, 0, config.sdr.sample_rate.into())
+        .expect("Error setting sample rate");
+    dev.set_gain(Direction::Rx, 0, config.sdr.gain.into())
+        .expect("Error setting gain");
+
+    // Set up streaming
+    let mut stream = dev
+        .rx_stream::<Complex<f32>>(&[0])
+        .expect("Error getting stream");
+    stream.activate(None).expect("Error activating stream");
+
+    let mut buffer = vec![Complex::new(0.0, 0.0); 1];
+
+    loop {
+        buffer.fill(Complex::new(0.0, 0.0));
+        match stream.read(&mut [&mut buffer], 5_000_000) {
+            Ok(values) => println!("{:?}", &buffer),
+            //Ok(values) => std::thread::sleep(std::time::Duration::from_secs(1)),
+            Err(e) => println!("{}", e),
+        }
+    }
+}
 /// Process SDR signal and extract RSSI for multiple frequencies
 pub fn get_signal(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) {
     let dev = Device::new(()).expect("Couldn't open device");

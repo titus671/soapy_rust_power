@@ -30,8 +30,11 @@ pub async fn moving_average(
             let average = *rolling_sum as f32 / queue.len() as f32;
             let delta = received.rssi - average;
             //println!("frequency: {}", received.frequency);
-            //println!("average: {}, Delta: {}", average, delta);
             if delta >= MAX_DELTA {
+                //println!(
+                //    "average: {}, Current: {}, Delta: {}",
+                //    average, received.rssi, delta
+                //);
                 sql_tools::insert_time_series_data(pool, received.clone()).await?;
             }
 
