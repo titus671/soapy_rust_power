@@ -8,7 +8,7 @@ use std::f32::consts::PI;
 use std::sync::mpsc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn output_fft(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) {
+pub fn output_fft(config: &config::Config, tx: mpsc::SyncSender<sql_tools::TSData>) {
     let dev = Device::new(()).expect("Couldn't open device");
 
     // Configure the SDR
@@ -25,13 +25,13 @@ pub fn output_fft(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) 
         .expect("Error getting stream");
     stream.activate(None).expect("Error activating stream");
 
-    let mut buffer = vec![Complex::new(0.0, 0.0); 256];
     let fft_size = 256;
     let mut buffer = vec![Complex::new(0.0, 0.0); fft_size];
 
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(fft_size);
     loop {
+        buffer.fill(Complex::new(0.0, 0.0));
         match stream.read(&mut [&mut buffer], 5_000_000) {
             Ok(samples) => {
                 if samples < fft_size {
@@ -43,13 +43,12 @@ pub fn output_fft(config: &config::Config, tx: mpsc::Sender<sql_tools::TSData>) 
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards");
 
-                let mut spectrum = buffer.clone();
-                fft.process(&mut spectrum);
+                fft.process(&mut buffer);
 
                 let bin_size = config.sdr.sample_rate as f32 / fft_size as f32;
 
                 // Send TSData for each frequency bin
-                for (i, &c) in spectrum.iter().enumerate() {
+                for (i, &c) in buffer.iter().enumerate() {
                     let freq = config.sdr.center_frequency as f32
                         + (i as f32 - fft_size as f32 / 2.0) * bin_size;
                     let power = 10.0 * c.norm_sqr().log10(); // Convert power to dB

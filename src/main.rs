@@ -14,7 +14,7 @@ async fn run(mut config: Config) -> Result<(), sqlx::Error> {
         .connect(&config.postgres.connection_url)
         .await?;
 
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::sync_channel(100);
 
     sql_tools::initialize_device(&pool, &mut config).await?;
 
