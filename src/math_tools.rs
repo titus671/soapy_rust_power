@@ -4,11 +4,11 @@ use std::error::Error;
 use std::sync::mpsc;
 
 const CAPACITY: usize = 500;
-const MAX_DELTA: f32 = 2.0;
 
 pub async fn moving_average(
     rx: mpsc::Receiver<sql_tools::TSData>,
     pool: &sqlx::Pool<sqlx::Postgres>,
+    config: &crate::config::Config,
 ) -> Result<(), Box<dyn Error>> {
     let mut queues: HashMap<String, VecDeque<sql_tools::TSData>> = HashMap::new();
     let mut rolling_sums: HashMap<String, f32> = HashMap::new();
@@ -30,7 +30,7 @@ pub async fn moving_average(
             let average = *rolling_sum as f32 / queue.len() as f32;
             let delta = received.rssi - average;
             //println!("frequency: {}", received.frequency);
-            if delta >= MAX_DELTA {
+            if delta >= config.postgres.max_delta {
                 //println!(
                 //    "average: {}, Current: {}, Delta: {}",
                 //    average, received.rssi, delta

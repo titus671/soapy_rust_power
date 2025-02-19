@@ -15,6 +15,7 @@ pub struct Config {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Postgres {
     pub connection_url: String,
+    pub max_delta: f32,
 }
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Sdr {

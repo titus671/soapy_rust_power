@@ -17,13 +17,16 @@ async fn run(mut config: Config) -> Result<(), sqlx::Error> {
     let (tx, rx) = mpsc::sync_channel(100);
 
     sql_tools::initialize_device(&pool, &mut config).await?;
+    let config_clone = config.clone();
 
     thread::spawn(move || {
         //sdr_tools::get_signal(&config, tx);
         sdr_tools::output_fft(&config, tx);
     });
 
-    math_tools::moving_average(rx, &pool).await.unwrap();
+    math_tools::moving_average(rx, &pool, &config_clone)
+        .await
+        .unwrap();
 
     Ok(())
 }
