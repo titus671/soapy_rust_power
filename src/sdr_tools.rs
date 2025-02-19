@@ -25,7 +25,7 @@ pub fn output_fft(config: &config::Config, tx: mpsc::SyncSender<sql_tools::TSDat
         .expect("Error getting stream");
     stream.activate(None).expect("Error activating stream");
 
-    let fft_size = 256;
+    let fft_size = config.sdr.fft_size;
     let mut buffer = vec![Complex::new(0.0, 0.0); fft_size];
 
     let mut planner = FftPlanner::new();

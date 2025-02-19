@@ -23,6 +23,7 @@ pub struct Sdr {
     pub sample_rate: f32,
     pub gain: f32,
     pub frequencies: Vec<f32>,
+    pub fft_size: usize,
 }
 
 impl Config {
